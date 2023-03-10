@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 
 import docker
-import time
 import argparse
 from datetime import date, datetime
 import secrets
@@ -44,13 +43,23 @@ def createContainer(name, port, image,command, cexpire, detach=True):
 def createCredentialFile(username,userpass, ip, port, dateexpire):
     ''' creates a txt file containing user credentials and ssh command'''
     with open(f"creds/{username}.txt", "w") as f:
+        if os.path.isfile('asci.txt'):
+            with open('asci.txt', 'r') as file:
+                # Do something with the file object
+                file_contents = file.read()
+                f.write(file_contents)
         f.write("#####################################################################\n")
         f.write("###                          Credentials                          ###\n")
         f.write("#####################################################################\n")
         f.write(f"Username: {username}\n")
         f.write(f"Password: {userpass}\n")
         f.write(f'ssh command: ssh {username}@{ip} -p {port}\n')
-        f.write(f'Your account will expire on {dateexpire}')
+        f.write(f'Your account will expire on {dateexpire}\n\n')
+        if os.path.isfile('disclaimer.txt'):
+            with open('disclaimer.txt', 'r') as file:
+                # Do something with the file object
+                file_contents = file.read()
+                f.write(file_contents)
         f.close()
         print(f'created credential file for {username} in location creds/{username}.txt')
 
@@ -122,4 +131,6 @@ elif user_input == "n":
     userAdd(args.first, args.last, host, args.port, args.ip, dateexpire)
 else:
     print("Invalid input. Please select y or n.")
+
+
 
