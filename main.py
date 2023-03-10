@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 import docker
 import argparse
 from datetime import date, datetime
@@ -88,7 +86,7 @@ def userAdd(first,last,container,port,ip,dateexpire):
             ## the below command copies files from root directory into user directory
             container.exec_run(f'sudo touch /home/{username}/.hushlogin')
             container.exec_run(f"""/bin/bash -c 'echo "{username}:{userpass}" | sudo chpasswd'""")
-            container.exec_run(f'sudo usermod -a -G tools user{username}')
+            container.exec_run(f"/bin/bash -c 'usermod -a -G tools user{username}'")
 #            container.exec_run(f"/bin/bash -c 'cp /home/user10/* /home/{username}/'")
             container.exec_run(f"/bin/bash -c 'for x in $(seq {first} {last}); do cp /root/* /home/user$x/; done'")
 
