@@ -143,4 +143,13 @@ for root, dirs, files in os.walk('creds'):
     for file in files:
         os.chmod(os.path.join(root, file), 0o777)
 
-shutil.make_archive('creds', 'zip', 'creds')
+output_name = f"{args.name}_{args.expiry}"
+output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"{output_name}.zip")
+
+shutil.make_archive(output_path[:-4], 'zip', 'creds')
+shutil.rmtree('creds')
+# Change ownership of the archive to the ubuntu user
+os.chown(output_path, 1000, 1000)
+
+print(f"Credential archive saved at {output_path}")
+
