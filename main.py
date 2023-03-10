@@ -87,9 +87,7 @@ def userAdd(first,last,container,port,ip,dateexpire):
             container.exec_run(f'sudo touch /home/{username}/.hushlogin')
             container.exec_run(f"""/bin/bash -c 'echo "{username}:{userpass}" | sudo chpasswd'""")
             container.exec_run(f"/bin/bash -c 'usermod -a -G tools user{username}'")
-#            container.exec_run(f"/bin/bash -c 'cp /home/user10/* /home/{username}/'")
             container.exec_run(f"/bin/bash -c 'for x in $(seq {first} {last}); do cp /root/* /home/user$x/; done'")
-
             createCredentialFile(username, userpass, ip, port,dateexpire)
         f.write(f'accounts will expire on {dateexpire}')
         f.close()
@@ -130,7 +128,7 @@ if user_input == "y":
     userAdd(args.first, args.last, container, args.port, args.ip, dateexpire)
 elif user_input == "n":
     print('Spinning up a new container')
-    host = createContainer(name=args.name, port=args.port, image=args.image, command='/usr/sbin/sshd -D',
+    host = createContainer(name=args.name, port=args.port, image=args.image, command=f'timeout {cexpire} /usr/sbin/sshd -D',
                            cexpire=100)
     userAdd(args.first, args.last, host, args.port, args.ip, dateexpire)
 else:
