@@ -66,7 +66,7 @@ def createCredentialFile(username,userpass, ip, port, dateexpire):
 
 def userAdd(first,last,container,port,ip,dateexpire):
     '''creates a user account and random password'''
-    with open(f"userlist.txt", "w") as f:
+    with open(f"creds/userlist.txt", "w") as f:
         f.write("#####################################################################\n")
         f.write("###                       User Credentials                        ###\n")
         f.write("#####################################################################\n")
@@ -91,7 +91,7 @@ def userAdd(first,last,container,port,ip,dateexpire):
             container.exec_run(f"/bin/bash -c 'usermod -a -G tools user{username}'")
             container.exec_run(f"/bin/bash -c 'for x in $(seq {first} {last}); do cp /root/* /home/user$x/; done'")
             createCredentialFile(username, userpass, ip, port,dateexpire)
-        f.write(f'accounts will expire on {dateexpire}')
+        f.write(f'accounts will expire on {dateexpire}\n')
         f.close()
         print(f'\ncreated master file of user credentials in location userlist.txt')
 
