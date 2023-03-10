@@ -95,3 +95,7 @@ also a userlist.txt file will be created in the working directory containing all
 ### adding disclaimer
 
 the script will check in the working directory is disclaimer.txt exits, if it exists it will append the contents to the end of the user credentials.txt files
+
+### adding asci
+
+the script will check in the working directory is asci.txt exits, if it exists it will append the contents to the start of the user credentials.txt files
