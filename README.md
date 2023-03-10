@@ -79,7 +79,7 @@ please enter the id
 
 if this is the first time the image has been pulled the script will take some time to run, dont exit, future updates will provide the user status updates.
 
-Once complete a directory will be created \creds, this will contain individual user credentials
+Once complete a directory will be created \creds, this will contain individual user credentials txt files
 
 ```commandline
 #####################################################################
