@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import docker
 import argparse
 from datetime import date, datetime
