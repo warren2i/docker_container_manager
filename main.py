@@ -7,6 +7,7 @@ import secrets
 import string
 from prettytable import PrettyTable
 import os
+import shutil
 
 client = docker.from_env()
 
@@ -36,7 +37,7 @@ def createContainer(name, port, image,command, cexpire, detach=True):
         command = command,
         ports = portdict,
         detach=detach,
-
+        user=0
     )
     return container
 
@@ -82,10 +83,15 @@ def userAdd(first,last,container,port,ip,dateexpire):
             userpass = format(pwd)
             print(f'Username: {username} Password: {userpass}\n')
             f.write(f'Username: {username} Password: {userpass}\n')
+
             container.exec_run(f'sudo useradd -e {dateexpire} -m {username} -s /bin/bash')
+            ## the below command copies files from root directory into user directory
             container.exec_run(f'sudo touch /home/{username}/.hushlogin')
             container.exec_run(f"""/bin/bash -c 'echo "{username}:{userpass}" | sudo chpasswd'""")
             container.exec_run(f'sudo usermod -a -G tools user{username}')
+#            container.exec_run(f"/bin/bash -c 'cp /home/user10/* /home/{username}/'")
+            container.exec_run(f"/bin/bash -c 'for x in $(seq {first} {last}); do cp /root/* /home/user$x/; done'")
+
             createCredentialFile(username, userpass, ip, port,dateexpire)
         f.write(f'accounts will expire on {dateexpire}')
         f.close()
@@ -104,7 +110,7 @@ parser.add_argument('-e', '--expiry', metavar='', type=date.fromisoformat, help=
 parser.add_argument('-n', '--name', metavar='', type=str, help="Name of docker container", required=True)
 parser.add_argument('-i', '--ip', metavar='', type=str, help="IP of machine", required=True)
 parser.add_argument('-p', '--port', metavar='', type=int, help="port to expose container ssh on", required=True)
-parser.add_argument('-I', '--image', metavar='', type=str, help="docker image default (notsosecure/rsh_kali:v.01)", default='notsosecure/rsh_kali:v.01', required=False)
+parser.add_argument('-I', '--image', metavar='', type=str, help="docker image default (notsosecure/rsh_kali:latest)", default='notsosecure/rsh_kali:latest', required=False)
 args = parser.parse_args()
 
 t = format(args.expiry)
@@ -132,5 +138,6 @@ elif user_input == "n":
 else:
     print("Invalid input. Please select y or n.")
 
+shutil.make_archive('creds', 'zip', 'creds')
 
 
