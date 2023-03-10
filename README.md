@@ -91,3 +91,7 @@ ssh command: ssh user10@kali.example.com -p 23
 Your account will expire on 2023-03-11
 ```
 also a userlist.txt file will be created in the working directory containing all credentials.
+
+### adding disclaimer
+
+the script will check in the working directory is disclaimer.txt exits, if it exists it will append the contents to the end of the user credentials.txt files
