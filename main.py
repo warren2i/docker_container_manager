@@ -136,6 +136,11 @@ elif user_input == "n":
 else:
     print("Invalid input. Please select y or n.")
 
+os.chmod('creds', 0o777)
+for root, dirs, files in os.walk('creds'):
+    for dir in dirs:
+        os.chmod(os.path.join(root, dir), 0o777)
+    for file in files:
+        os.chmod(os.path.join(root, file), 0o777)
+
 shutil.make_archive('creds', 'zip', 'creds')
-
-
