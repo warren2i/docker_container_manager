@@ -1,35 +1,41 @@
 #!/usr/bin/python3
 
-import docker
 import argparse
-from datetime import date, datetime
-import secrets
-import string
-from prettytable import PrettyTable
+import datetime
 import os
+import secrets
 import shutil
+import string
+from pathlib import Path
+from zipfile import ZipFile
 
-client = docker.from_env()
+import docker
+from prettytable import PrettyTable
 
 
-def list_container():
-    """lists running containers"""
-    container_list = client.containers.list(all)
-    print(f"Found {len(container_list)} containers on the host\n")
+def list_containers():
+    """Lists running containers"""
+    client = docker.from_env()
+    container_list = client.containers.list(all=True)
+    print(f"These are the currently running containers on the host\n")
     table = PrettyTable(['Id', 'Image', 'Name', 'Status'])
     num_running_containers = len(container_list)
-    if len(container_list) == 0:
+    if num_running_containers == 0:
         pass
     else:
         for container in container_list:
-            id, image, name, status, labels = container.id, container.image.tags[
-                0], container.name, container.status, container.labels
-            table.add_row([id[0:12], image, name, status])
-    return num_running_containers, (str(table))
+            id = container.id[:12]
+            image = container.image.tags[0]
+            name = container.name
+            status = container.status
+            labels = container.labels
+            table.add_row([id, image, name, status])
+    return num_running_containers, str(table)
 
 
 def create_container(name, port, image, command, detach=True):
-    """spins up the host container"""
+    """Spins up the host container"""
+    client = docker.from_env()
     port_dict = {i: i for i in range(4010, 4050)}
     port_dict['22'] = port
     container = client.containers.run(
@@ -43,130 +49,118 @@ def create_container(name, port, image, command, detach=True):
     return container
 
 
-def create_credential_file(username, userpass, ip, port, date_expire):
-    """ creates a txt file containing user credentials and ssh command"""
+def create_credential_file(username, password, ip, port, date_expire):
+    """Creates a txt file containing user credentials and SSH command"""
     with open(f"creds/{username}.txt", "w") as f:
-        if os.path.isfile('asci.txt'):
+        try:
             with open('asci.txt', 'r') as f1:
-                # Do something with the file object
                 file_contents = f1.read()
                 f.write(file_contents)
+        except FileNotFoundError:
+            print('Error: Could not find file asci.txt')
+
         f.write("#####################################################################\n")
         f.write("###                          Credentials                          ###\n")
         f.write("#####################################################################\n")
         f.write(f"Username: {username}\n")
-        f.write(f"Password: {userpass}\n")
+        f.write(f"Password: {password}\n")
         f.write(f'ssh command: ssh {username}@{ip} -p {port}\n')
         f.write(f'Your account will expire on {date_expire}\n\n')
-        if os.path.isfile('disclaimer.txt'):
+
+        try:
             with open('disclaimer.txt', 'r') as f2:
-                # Do something with the file object
                 file_contents = f2.read()
                 f.write(file_contents)
+        except FileNotFoundError:
+            print('Error: Could not find file disclaimer.txt')
+
         f.close()
-        print(f'created credential file for {username} in location creds/{username}.txt')
+        print(f'Created credential file for {username} in location creds/{username}.txt')
 
 
-def user_add(first, last, container, port, ip, date_expire):
-    """ creates a user account and random password """
-    with open(f"creds/user-list.txt", "w") as f:
+def create_user_accounts(first, last, container, port, ip, date_expire):
+    """Creates user accounts with random passwords"""
+    creds_dir = Path('creds')
+    creds_dir.mkdir(exist_ok=True)
+    with (creds_dir / "user-list.txt").open("w") as f:
         f.write("#####################################################################\n")
         f.write("###                       User Credentials                        ###\n")
         f.write("#####################################################################\n")
-        f.write(f'{list_container()[1]}\n')
+        f.write(f'{list_containers()[1]}\n')
         for user in range(first, last):
-            letters = string.ascii_letters
-            digits = string.digits
-            passwd = letters + digits
+            letters_digits = string.ascii_letters + string.digits
             passwd_len = 12
-            pwd = ''
-            for i in range(passwd_len):
-                pwd += ''.join(secrets.choice(passwd))
-            username = f'user{format(user)}'
-            userpass = format(pwd)
-            print(f'Username: {username} Password: {userpass}\n')
-            f.write(f'Username: {username} Password: {userpass}\n')
-
+            password = ''.join(secrets.choice(letters_digits) for i in range(passwd_len))
+            username = f'user{user:02d}'
+            print(f'Username: {username} Password: {password}\n')
+            f.write(f'Username: {username} Password: {password}\n')
             container.exec_run(f'sudo useradd -e {date_expire} -m {username} -s /bin/bash')
-            # the below command copies files from root directory into user directory
             container.exec_run(f'sudo touch /home/{username}/.hushlogin')
-            container.exec_run(f"""/bin/bash -c 'echo "{username}:{userpass}" | sudo chpasswd'""")
+            container.exec_run(f"""/bin/bash -c 'echo "{username}:{password}" | sudo chpasswd'""")
             container.exec_run(f"/bin/bash -c 'usermod -a -G tools user{username}'")
             container.exec_run(f"/bin/bash -c 'for x in $(seq {first} {last}); do cp /root/* /home/user$x/; done'")
-            create_credential_file(username, userpass, ip, port, date_expire)
+            create_credential_file(username, password, ip, port, date_expire)
         f.write(f'accounts will expire on {date_expire}\n')
-        f.close()
-        print(f'\ncreated master file of user credentials in location user-list.txt')
+        print(f'\nCreated master file of user credentials in location user-list.txt')
 
 
-# os detection
-if os.name == 'nt':
-    linux = False
-else:
-    linux = True
+def main():
+    parser = argparse.ArgumentParser(description="Command line automation of docker container launch and SSH user assignment")
+    parser.add_argument('-f', '--first', metavar='', type=int, help="First user number between (10-50)", choices=range(10, 50), required=True)
+    parser.add_argument('-l', '--last', metavar='', type=int, help='Last user number between (10-50)', choices=range(10, 50), required=True)
+    parser.add_argument('-e', '--expiry', metavar='', type=lambda s: datetime.datetime.strptime(s, '%Y-%m-%d').date(),
+                        help="User expiry date format YYYY-MM-DD", required=True)
+    parser.add_argument('-n', '--name', metavar='', type=str, help="Name of Docker container", required=True)
+    parser.add_argument('-i', '--ip', metavar='', type=str, help="IP of machine", required=True)
+    parser.add_argument('-p', '--port', metavar='', type=int, help="Port to expose container SSH on", required=True)
+    parser.add_argument('-I', '--image', metavar='', type=str, help="Docker image default (notsosecure/rsh_kali:latest)",
+                        default='notsosecure/rsh_kali:latest', required=False)
+    args = parser.parse_args()
 
-# creates creds directory
-try:
-    os.makedirs("creds")
-except FileExistsError:
-    # directory already exists
-    pass
+    container_expire = (datetime.datetime.fromisoformat(str(args.expiry)) - datetime.datetime.now()).total_seconds()
+    date_expire = str(args.expiry)
 
-parser = argparse.ArgumentParser(
-    description="command line automation of docker container launch and ssh user assignment")
-parser.add_argument('-f', '--first', metavar='', type=int, help="First user number between (10-50)",
-                    choices=range(10, 50), required=True)
-parser.add_argument('-l', '--last', metavar='', type=int, help='Last user number between (10-50)',
-                    choices=range(10, 50), required=True)
-parser.add_argument('-e', '--expiry', metavar='', type=date.fromisoformat, help="User expiry date format YYYY-MM-DD",
-                    required=True)
-parser.add_argument('-n', '--name', metavar='', type=str, help="Name of docker container", required=True)
-parser.add_argument('-i', '--ip', metavar='', type=str, help="IP of machine", required=True)
-parser.add_argument('-p', '--port', metavar='', type=int, help="port to expose container ssh on", required=True)
-parser.add_argument('-I', '--image', metavar='', type=str, help="docker image default (notsosecure/rsh_kali:latest)",
-                    default='notsosecure/rsh_kali:latest', required=False)
-args = parser.parse_args()
+    # Print current running containers
+    print(list_containers()[1])
 
-containerExpire = (datetime.fromisoformat(format(args.expiry)) - datetime.now()).total_seconds()
-dateExpire = format(args.expiry)
+    print('###################################################################')
+    print('Is the container you would like to configure already running? (Y/N)\n')
 
-print('###################################################################')
-print('is the container you would like to configure already running? (Y/N)\n')
+    while True:
+        user_input = input("Select y or n: \n")
+        if user_input == "y":
+            print("You selected yes.")
+            container_id = input('Please enter the container ID: ')
+            container = docker.from_env().containers.get(container_id)
+            create_user_accounts(args.first, args.last, container, args.port, args.ip, date_expire)
+            break
+        elif user_input == "n":
+            print('Spinning up a new container')
+            host = create_container(name=args.name, port=args.port, image=args.image, command=f'timeout {container_expire} /usr/sbin/sshd -D')
+            create_user_accounts(args.first, args.last, host, args.port, args.ip, date_expire)
+            break
+        else:
+            print("Invalid input. Please select y or n.")
 
-user_input = input("Select y or n: \n")
+    os.chmod('creds', 0o777)
+    for root, directories, files in os.walk('creds'):
+        for directory in directories:
+            os.chmod(os.path.join(root, directory), 0o777)
+        for file in files:
+            os.chmod(os.path.join(root, file), 0o777)
 
-if user_input == "y":
-    print("You selected yes.")
-    print('Please select the container you would wish to configure')
-    print(list_container()[1])
-    print('please enter the id\n')
-    containerId = input()
-    container = client.containers.get(containerId)
-    user_add(args.first, args.last, container, args.port, args.ip, dateExpire)
-elif user_input == "n":
-    print('Spinning up a new container')
-    host = create_container(name=args.name, port=args.port, image=args.image,
-                            command=f'timeout {containerExpire} /usr/sbin/sshd -D',
-                            )
-    user_add(args.first, args.last, host, args.port, args.ip, dateExpire)
-else:
-    print("Invalid input. Please select y or n.")
+    output_name = f"{args.name}_{args.expiry}"
+    output_path = Path(output_name).with_suffix('.zip')
 
-os.chmod('creds', 0o777)
-for root, directories, files in os.walk('creds'):
-    for directory in directories:
-        os.chmod(os.path.join(root, directory), 0o777)
-    for file in files:
-        os.chmod(os.path.join(root, file), 0o777)
+    with ZipFile(output_path, 'w') as zip_file:
+        for root, directories, files in os.walk('creds'):
+            for file in files:
+                zip_file.write(os.path.join(root, file), file)
 
-output_name = f"{args.name}_{args.expiry}"
-output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"{output_name}.zip")
-
-if linux:
-    shutil.make_archive(output_path[:-4], 'zip', 'creds')
-    # Change ownership of the archive to the ubuntu user
+    shutil.rmtree('creds')
     os.chown(output_path, 1000, 1000)
-else:
-    shutil.make_archive(output_path[:-4], 'zip', 'creds')
-shutil.rmtree('creds')
-print(f"Credential archive saved at {output_path}")
+    print(f"Credential archive saved at {output_path}")
+
+
+if __name__ == '__main__':
+    main()
