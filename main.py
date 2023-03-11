@@ -8,9 +8,26 @@ import shutil
 import string
 from pathlib import Path
 from zipfile import ZipFile
-
+from urllib import request
 import docker
 from prettytable import PrettyTable
+
+
+def test_internet_speed(image_size):
+    # this function is not ready to be used, but it is simply here as a placeholder
+    """times 1MB file download and calculated basic internet speed test"""
+    url = f"http://speedtest.tele2.net/10MB.zip"
+    start_time = datetime.datetime.now()
+    response = request.urlopen(url)
+    size = int(response.headers["Content-Length"])
+    end_time = datetime.datetime.now()
+    duration = (end_time - start_time).total_seconds()
+    print(duration)
+    speed = size / duration / 1000000
+    approx_time = (image_size / (speed / 8) / 60)
+    print(f"Image file is {image_size}MB in size, this will take approx {approx_time}"
+          f" minuites @ your tested download speed: {speed} Mbps\n")
+    return approx_time
 
 
 def list_containers():
@@ -21,7 +38,7 @@ def list_containers():
     table = PrettyTable(['Id', 'Image', 'Name', 'Status'])
     num_running_containers = len(container_list)
     if num_running_containers == 0:
-        pass
+        return num_running_containers, str('')
     else:
         for container in container_list:
             id = container.id[:12]
@@ -30,14 +47,22 @@ def list_containers():
             status = container.status
             labels = container.labels
             table.add_row([id, image, name, status])
-    return num_running_containers, str(table)
+        return num_running_containers, str(table)
 
 
 def create_container(name, port, image, command, detach=True):
     """Spins up the host container"""
     client = docker.from_env()
+
+    if not client.images.list(name=image):
+        print("image doest exist locally, fetching image this might take a while")
+        # placeholder for approx download wait time
+        # test_internet_speed()
+    else:
+        print(f"Image already exists locally")
     port_dict = {i: i for i in range(4010, 4050)}
     port_dict['22'] = port
+    print(image)
     container = client.containers.run(
         image=image,
         name=name,
@@ -130,7 +155,7 @@ def main():
     # Print current running containers
     print(list_containers()[1])
 
-    print('###################################################################')
+    print('###################################################################y')
     print('Is the container you would like to configure already running? (Y/N)\n')
 
     while True:
