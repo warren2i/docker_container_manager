@@ -155,7 +155,7 @@ def main():
     # Print current running containers
     print(list_containers()[1])
 
-    print('###################################################################y')
+    print('###################################################################')
     print('Is the container you would like to configure already running? (Y/N)\n')
 
     while True:
