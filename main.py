@@ -90,7 +90,7 @@ def create_user_accounts(first, last, container, port, ip, date_expire):
         for user in range(first, last):
             letters_digits = string.ascii_letters + string.digits
             passwd_len = 12
-            password = ''.join(secrets.choice(letters_digits) for _ in range(passwd_len))
+            password = ''.join(secrets.choice(letters_digits) for i in range(passwd_len))
             username = f'user{user:02d}'
             print(f'Username: {username} Password: {password}\n')
             f.write(f'Username: {username} Password: {password}\n')
@@ -105,22 +105,15 @@ def create_user_accounts(first, last, container, port, ip, date_expire):
 
 
 def main():
-    print(f'detected os: {os.name}')
-    linux = not (os.name == 'nt')
-
-    parser = argparse.ArgumentParser(
-        description="Command line automation of docker container launch and SSH user assignment")
-    parser.add_argument('-f', '--first', metavar='', type=int, help="First user number between (10-50)",
-                        choices=range(10, 50), required=True)
-    parser.add_argument('-l', '--last', metavar='', type=int, help='Last user number between (10-50)',
-                        choices=range(10, 50), required=True)
+    parser = argparse.ArgumentParser(description="Command line automation of docker container launch and SSH user assignment")
+    parser.add_argument('-f', '--first', metavar='', type=int, help="First user number between (10-50)", choices=range(10, 50), required=True)
+    parser.add_argument('-l', '--last', metavar='', type=int, help='Last user number between (10-50)', choices=range(10, 50), required=True)
     parser.add_argument('-e', '--expiry', metavar='', type=lambda s: datetime.datetime.strptime(s, '%Y-%m-%d').date(),
                         help="User expiry date format YYYY-MM-DD", required=True)
     parser.add_argument('-n', '--name', metavar='', type=str, help="Name of Docker container", required=True)
     parser.add_argument('-i', '--ip', metavar='', type=str, help="IP of machine", required=True)
     parser.add_argument('-p', '--port', metavar='', type=int, help="Port to expose container SSH on", required=True)
-    parser.add_argument('-I', '--image', metavar='', type=str,
-                        help="Docker image default (notsosecure/rsh_kali:latest)",
+    parser.add_argument('-I', '--image', metavar='', type=str, help="Docker image default (notsosecure/rsh_kali:latest)",
                         default='notsosecure/rsh_kali:latest', required=False)
     args = parser.parse_args()
 
@@ -143,11 +136,7 @@ def main():
             break
         elif user_input == "n":
             print('Spinning up a new container')
-            host = create_container(
-                name=args.name,
-                port=args.port,
-                image=args.image,
-                command=f'timeout {container_expire} /usr/sbin/sshd -D')
+            host = create_container(name=args.name, port=args.port, image=args.image, command=f'timeout {container_expire} /usr/sbin/sshd -D')
             create_user_accounts(args.first, args.last, host, args.port, args.ip, date_expire)
             break
         else:
@@ -169,8 +158,7 @@ def main():
                 zip_file.write(os.path.join(root, file), file)
 
     shutil.rmtree('creds')
-    if linux:
-        os.chown(output_path, 1000, 1000)
+    os.chown(output_path, 1000, 1000)
     print(f"Credential archive saved at {output_path}")
 
 
